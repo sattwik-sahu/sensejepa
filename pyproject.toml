@@ -1,33 +1,38 @@
 [project]
-name = "gestr-ai"
+name = "sensejepa"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "Sattwik Kumar Sahu", email = "sattwik21@iiserb.ac.in" }
-]
+authors = [{ name = "Sattwik Kumar Sahu", email = "sattwik21@iiserb.ac.in" }]
 requires-python = ">=3.12"
 dependencies = [
     "huggingface-hub>=0.36.0",
     "matplotlib>=3.10.8",
-    "numpy>=2.3.5",
+    "numpy<=2.2",
     "scikit-learn>=1.8.0",
     "scipy>=1.16.3",
     "seaborn>=0.13.2",
     "torch>=2.9.1",
     "torchvision>=0.24.1",
     "transformers>=4.57.3",
+    "wandb>=0.23.1",
+    "x-transformers>=2.12.2",
 ]
 
 [project.scripts]
-gestr-ai = "gestr_ai:main"
+sensejepa = "sensejepa:main"
 
 [build-system]
 requires = ["uv_build>=0.9.5,<0.10.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = [
-    "jupyter>=1.1.1",
-    "ruff>=0.14.9",
+dev = ["jupyter>=1.1.1", "pytest>=9.0.2", "ruff>=0.14.9", "torchinfo>=1.8.0"]
+train = [
+    "cudf-cu13>=25.12.0",
+    "cudf-polars-cu13>=25.12.0",
+    "dask-cudf-cu13>=25.12.0",
+    "libcudf-cu13>=25.12.0",
+    "pandas>=2.3.3",
+    "pylibcudf-cu13>=25.12.0",
 ]

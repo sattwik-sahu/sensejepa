@@ -11,5 +11,6 @@ wheels/
 
 data/
 notebooks/
-tests/
 .env
+
+*.sublime*
