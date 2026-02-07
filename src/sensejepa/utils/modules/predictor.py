@@ -1,5 +1,5 @@
 import torch
-from x_transformers import ContinuousTransformerWrapper, Decoder
+from x_transformers import Decoder as XTDecoder
 from typing_extensions import override
 
 
@@ -7,7 +7,6 @@ class Predictor(torch.nn.Module):
     def __init__(
         self,
         dim: int,
-        n_sensors: int,
         n_layers: int,
         n_heads: int,
         attn_kv_heads: int,
@@ -17,45 +16,31 @@ class Predictor(torch.nn.Module):
     ) -> None:
         super().__init__()
 
-        # The transformer decoder
-        # self._decoder: ContinuousTransformerWrapper = ContinuousTransformerWrapper(
-        #     dim_in=dim,
-        #     dim_out=dim,
-        #     max_seq_len=n_sensors + 1,
-        #     use_abs_pos_emb=False,
-        #     attn_layers=Decoder(
-        #         dim=dim,
-        #         depth=n_layers,
-        #         heads=n_heads,
-        #         ff_swish=True,
-        #         ff_glu=True,
-        #         attn_kv_heads=attn_kv_heads,
-        #         use_scalenorm=True,
-        #         ff_dropout=ff_dropout,
-        #         attn_dropout=attn_dropout,
-        #         layer_dropout=layer_dropout,
-        #         cross_attend=True,
-        #         rotary_pos_emb=False,
-        #     ),
-        # )
-        self._decoder = torch.nn.TransformerDecoder(
-            decoder_layer=torch.nn.TransformerDecoderLayer(
-                d_model=dim,
-                nhead=n_heads,
-                dropout=ff_dropout,
-                activation=torch.nn.GELU(),
-                batch_first=True,
-                # norm_first=True,
-            ),
-            num_layers=n_layers,
+        self._decoder = XTDecoder(
+            dim=dim,
+            depth=n_layers,
+            heads=n_heads,
+            attn_kv_heads=attn_kv_heads,
+            ff_dropout=ff_dropout,
+            attn_dropout=attn_dropout,
+            layer_dropout=layer_dropout,
+            ff_glu=True,
+            ff_swish=True,
+            cross_attend=True,  # Enables memory interaction
+            use_rmsnorm=True,
         )
 
     @override
     def forward(self, x: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
-        batch_size, _, _ = x.shape
+        # Ensure z matches batch size for queries
+        batch_size = x.shape[0]
         if z.ndim < x.ndim:
             z = z.unsqueeze(0)
+
+        # Expand queries to batch size: (B, N_sensors+1, dim)
         z_batched = z.expand(batch_size, *z.shape[1:])
 
-        reconst_output: torch.Tensor = self._decoder(tgt=z_batched, memory=x)
+        # In x-transformers Decoder, cross-attention happens automatically
+        # when 'context' is provided
+        reconst_output = self._decoder(z_batched, context=x)
         return reconst_output

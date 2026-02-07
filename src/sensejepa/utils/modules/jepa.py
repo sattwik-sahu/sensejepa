@@ -28,7 +28,6 @@ class JointEmbeddingPredictiveArchitecture(torch.nn.Module):
         jepa_loss_fn: torch.nn.Module,
         sigreg_lambda: float,
         sigreg_knots: int = 17,
-        use_latent: bool = False,
         eta: float = 1e-3,
         *args,
         **kwargs,
@@ -39,7 +38,6 @@ class JointEmbeddingPredictiveArchitecture(torch.nn.Module):
         self._sigreg: SIGReg = SIGReg(knots=sigreg_knots)
         self._sigreg_lambda: float = sigreg_lambda
         self._jepa_loss_fn: torch.nn.Module = jepa_loss_fn
-        self._use_latent: bool = use_latent
         self._eta = eta
 
         self._context_encoder: torch.nn.Module = context_encoder
@@ -60,27 +58,23 @@ class JointEmbeddingPredictiveArchitecture(torch.nn.Module):
 
     @override
     def forward(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> JEPAOutput:
+        # Encode the context
         s_x: torch.Tensor = self._context_encoder(x)
 
-        # 1. Standardize the [CLS] token to prevent loss explosion
-        cls_token = s_x[:, 0]
-        # with torch.no_grad():
-        #     # Using running/batch stats to keep the 'shape' but fix the 'scale'
-        #     mean = cls_token.mean(dim=0, keepdim=True)
-        #     std = cls_token.std(dim=0, keepdim=True) + 1e-6
-        # cls_stable = (cls_token - mean) / std
+        # Encode the target
+        with torch.no_grad():
+            s_y = self._target_encoder(y).detach()
 
-        # 2. Prediction and Target Logic (Keep your current logic)
+        # Extract the CLS tokens
+        cls_token = s_x[:, 0]
+
+        # Predict the target
         z_full = torch.cat([self._z_cls.unsqueeze(0), z])
         shat_y = self._predictor(s_x, z_full)
-        s_y = self._target_encoder(y).detach()
 
-        # 3. Calculate balanced losses
+        # Calculate loss
         loss_jepa = self._jepa_loss_fn(shat_y, s_y)
         loss_sigreg = self._sigreg(cls_token)
-        # loss_sigreg = self._sigreg(cls_stable)
-
-        # 4. Use a MUCH smaller lambda initially
         loss = (
             1 - self._sigreg_lambda
         ) * loss_jepa + self._eta * self._sigreg_lambda * loss_sigreg
