@@ -21,7 +21,7 @@ class SensorTokenizer(torch.nn.Module):
         )
 
         self._sensor_embeddings: torch.nn.Parameter = torch.nn.Parameter(
-            torch.randn(self._n_sensors, self._dim)
+            torch.randn(self._n_sensors, self._dim) * 0.02
         )
 
     @property
